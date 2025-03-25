@@ -9,14 +9,25 @@
 <body>
     <div class="login-container">
         <h2>🔒 Login</h2>
+        
+        {% if error %}
+            <p class="error-message">{{ error }}</p>
+        {% endif %}
+
         <form id="loginForm" method="POST">
-            <input type="text" name="username" placeholder="Username" required>
-            <input type="password" name="password" placeholder="Password" required>
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" placeholder="Enter Username" required>
+            
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Enter Password" required>
+            
             <button type="submit">Login</button>
         </form>
-        <p id="error" class="error-message">{{ error if error else "" }}</p>
+
+        <p>Don't have an account? <a href="{{ url_for('register') }}">Register here</a></p>
     </div>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
+

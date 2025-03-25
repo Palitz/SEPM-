@@ -1,6 +1,8 @@
+import sqlite3
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from flask_cors import CORS
 import yfinance as yf
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 CORS(app)
@@ -8,15 +10,27 @@ CORS(app)
 # Secret key for session management
 app.secret_key = "supersecretkey"
 
-# Mock user database (Replace with actual database in production)
-USERS = {
-    "user1": "password123",
-    "admin": "adminpass"
-}
-
 # Stocks to fetch
 STOCKS = ["AAPL", "GOOGL", "TSLA", "AMZN", "MSFT", "META", "NVDA", "NFLX"]
 
+# ------------------ DATABASE SETUP ------------------ #
+
+def init_db():
+    """Initialize the SQLite database and create tables."""
+    conn = sqlite3.connect("users.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+init_db()  # Run once when the server starts
 
 # ------------------ ROUTES ------------------ #
 
@@ -26,6 +40,29 @@ def home():
     return redirect(url_for("login"))
 
 
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    """Handles user registration"""
+    if request.method == "POST":
+        username = request.form["username"]
+        email = request.form["email"]
+        password = request.form["password"]
+        hashed_password = generate_password_hash(password)  # Hash password
+
+        try:
+            conn = sqlite3.connect("users.db")
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
+                           (username, email, hashed_password))
+            conn.commit()
+            conn.close()
+            return redirect(url_for("login"))
+        except sqlite3.IntegrityError:
+            return render_template("register.html", error="Username or Email already exists")
+
+    return render_template("register.html")
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     """Handles user login"""
@@ -33,7 +70,13 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
 
-        if username in USERS and USERS[username] == password:
+        conn = sqlite3.connect("users.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT password FROM users WHERE username = ?", (username,))
+        user = cursor.fetchone()
+        conn.close()
+
+        if user and check_password_hash(user[0], password):
             session["user"] = username
             return redirect(url_for("dashboard"))
         else:
