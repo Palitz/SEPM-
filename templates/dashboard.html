@@ -12,7 +12,10 @@
         <h2>📊 Welcome, {{ username }}</h2>
         <button id="logout">Logout</button>
 
-        <h3>Stock Data</h3>
+        <h3>Search for a Stock</h3>
+        <input type="text" id="stockSearch" placeholder="Enter stock symbol...">
+        
+        <h3>Top Stocks</h3>
         <table>
             <thead>
                 <tr>
@@ -23,12 +26,24 @@
                 </tr>
             </thead>
             <tbody id="stockTableBody">
-                <!-- Stock data gets inserted here -->
+                <!-- Top stocks get inserted here -->
             </tbody>
         </table>
 
-        <h3>Stock Price Chart</h3>
-        <canvas id="stockChart"></canvas>
+        <h3>Search Results</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Stock</th>
+                    <th>Price</th>
+                    <th>High</th>
+                    <th>Low</th>
+                </tr>
+            </thead>
+            <tbody id="searchResults">
+                <!-- Searched stock data gets inserted here -->
+            </tbody>
+        </table>
     </div>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>

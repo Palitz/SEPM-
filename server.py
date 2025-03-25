@@ -10,8 +10,8 @@ CORS(app)
 # Secret key for session management
 app.secret_key = "supersecretkey"
 
-# Stocks to fetch
-STOCKS = ["AAPL", "GOOGL", "TSLA", "AMZN", "MSFT", "META", "NVDA", "NFLX"]
+# Default top stocks
+TOP_STOCKS = ["AAPL", "GOOGL", "TSLA", "AMZN", "MSFT", "META", "NVDA", "NFLX"]
 
 # ------------------ DATABASE SETUP ------------------ #
 
@@ -106,8 +106,13 @@ def get_stock_data():
     if "user" not in session:
         return jsonify({"message": "Unauthorized", "status": "fail"}), 401
 
+    query = request.args.get("query", "").strip().upper()
+
+    # If no query, return top stocks
+    stocks = [query] if query else TOP_STOCKS
+
     stock_data = {}
-    for symbol in STOCKS:
+    for symbol in stocks:
         try:
             stock = yf.Ticker(symbol)
             hist = stock.history(period="1y")  # Fetch 1-year data
