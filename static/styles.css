@@ -41,3 +41,51 @@ th, td {
     padding: 10px;
     border: 1px solid white;
 }
+
+/* 🎨 Improved Table Look */
+th {
+    background-color: #007bff;
+    color: white;
+}
+
+td {
+    text-align: center;
+}
+
+tr:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* 📈 Chart Container (Fixed Size, Landscape) */
+.chart-container {
+    width: 100%;
+    max-width: 700px;
+    height: 300px;
+    margin: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 📊 Stock Logos */
+.stock-logo {
+    width: 25px;
+    height: 25px;
+    margin-right: 8px;
+    vertical-align: middle;
+    border-radius: 50%;
+    background-color: white;
+    padding: 2px;
+}
+
+/* 🔎 Search Bar */
+#stockSearch {
+    width: 80%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid white;
+    border-radius: 5px;
+    background-color: #333;
+    color: white;
+    text-align: center;
+}
