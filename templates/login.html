@@ -3,31 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <title>Login - Stock Market Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="login-container">
-        <h2>🔒 Login</h2>
-        
-        {% if error %}
-            <p class="error-message">{{ error }}</p>
-        {% endif %}
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>Welcome Back</h1>
+                <p class="text-secondary">Sign in to access your stock dashboard</p>
+            </div>
 
-        <form id="loginForm" method="POST">
-            <label for="username">Username</label>
-            <input type="text" id="username" name="username" placeholder="Enter Username" required>
-            
-            <label for="password">Password</label>
-            <input type="password" id="password" name="password" placeholder="Enter Password" required>
-            
-            <button type="submit">Login</button>
-        </form>
+            {% if error %}
+                <div class="alert alert-error">
+                    <span class="alert-icon">⚠️</span>
+                    <span class="alert-message">{{ error }}</span>
+                </div>
+            {% endif %}
 
-        <p>Don't have an account? <a href="{{ url_for('register') }}">Register here</a></p>
+            <form id="loginForm" method="POST" class="auth-form">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <div class="input-group">
+                        <span class="input-icon">👤</span>
+                        <input type="text" id="username" name="username" placeholder="Enter your username" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <div class="input-group">
+                        <span class="input-icon">🔒</span>
+                        <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+            </form>
+
+            <div class="auth-footer">
+                <p>Don't have an account? <a href="{{ url_for('register') }}" class="link">Create one</a></p>
+            </div>
+        </div>
     </div>
 
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+        // Theme Toggle
+        const themeToggle = document.createElement('button');
+        themeToggle.className = 'theme-toggle';
+        themeToggle.textContent = '🌙';
+        document.body.appendChild(themeToggle);
+
+        themeToggle.addEventListener('click', () => {
+            document.body.dataset.theme = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
+            themeToggle.textContent = document.body.dataset.theme === 'dark' ? '☀️' : '🌙';
+        });
+
+        // Initialize with system preference
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.body.dataset.theme = 'dark';
+            themeToggle.textContent = '☀️';
+        }
+    </script>
 </body>
 </html>
 

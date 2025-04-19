@@ -26,8 +26,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 const stockCell = document.createElement("td");
                 stockCell.innerHTML = `
-                    <img src="/static/logos/${symbol}.png" class="stock-logo" alt="${symbol} Logo">
-                    <a href="#" class="stock-link" data-symbol="${symbol}">${symbol}</a>
+                    <a href="#" class="stock-link" data-symbol="${symbol}">${data.company_name}</a>
                 `;
                 stockCell.style.cursor = "pointer";
 
@@ -62,6 +61,9 @@ document.addEventListener("DOMContentLoaded", function () {
     async function fetchStockHistory(symbol) {
         try {
             const response = await fetch(`/stock-history?symbol=${symbol}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
             const data = await response.json();
 
             if (data.error) {
@@ -73,6 +75,7 @@ document.addEventListener("DOMContentLoaded", function () {
             displayPredictions(symbol, data.predictions);
         } catch (error) {
             console.error("Failed to fetch stock history:", error);
+            alert("Failed to load stock history. Please try again later.");
         }
     }
 
@@ -156,11 +159,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function resetChartAndPredictions() {
-        const chartContainer = document.getElementById("chartContainer");
-        chartContainer.innerHTML = ""; // Remove old chart
-
-        const predictionContainer = document.getElementById("predictionContainer");
-        predictionContainer.innerHTML = ""; // Clear predictions
+        document.getElementById("chartContainer").innerHTML = ""; // Remove old chart
+        document.getElementById("predictionContainer").innerHTML = ""; // Clear predictions
     }
 
     document.getElementById("searchBtn").addEventListener("click", function () {
@@ -177,7 +177,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
-    document.getElementById("logoutBtn").addEventListener("click", async function () {
+    document.getElementById("logout").addEventListener("click", async function () {
         try {
             const response = await fetch("/logout", { method: "POST" });
             const result = await response.json();
