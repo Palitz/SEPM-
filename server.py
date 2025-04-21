@@ -139,74 +139,55 @@ def logout():
     return jsonify({"status": "success"})
 
 @app.route("/stock-data")
+@login_required
 def get_stock_data():
-    if "user" not in session:
-        return jsonify({"message": "Unauthorized", "status": "fail"}), 401
-
-    query = request.args.get("query", "").strip().upper()
-    stocks = [query] if query else TOP_STOCKS
-
-    stock_data = {}
-    for symbol in stocks:
-        try:
-            stock = yf.Ticker(symbol)
-            stock_info = stock.info
-            hist = stock.history(period="1d")
-            prev_hist = stock.history(period="2d")
-
-            if not hist.empty and "Close" in hist.columns:
-                current_price = float(hist["Close"].iloc[-1])
-                prev_close = float(prev_hist["Close"].iloc[-2]) if len(prev_hist) > 1 else current_price
-                volume = int(hist["Volume"].iloc[-1]) if "Volume" in hist.columns else 0
-
+    try:
+        # List of top stocks to track
+        symbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA', 'NVDA', 'JPM', 'V', 'WMT']
+        stock_data = {}
+        
+        for symbol in symbols:
+            try:
+                stock = yf.Ticker(symbol)
+                info = stock.info
+                
                 stock_data[symbol] = {
-                    "company_name": stock_info.get("shortName", symbol),
-                    "price": round(current_price, 2),
-                    "previousClose": round(prev_close, 2),
-                    "volume": volume,
-                    "marketCap": stock_info.get("marketCap", "N/A"),
-                    "peRatio": stock_info.get("trailingPE", "N/A"),
-                    "dividendYield": stock_info.get("dividendYield", "N/A"),
-                    "52WeekHigh": stock_info.get("fiftyTwoWeekHigh", "N/A"),
-                    "52WeekLow": stock_info.get("fiftyTwoWeekLow", "N/A")
+                    'name': info.get('longName', 'N/A'),
+                    'price': info.get('currentPrice', 0),
+                    'change': info.get('regularMarketChangePercent', 0),
+                    'volume': info.get('regularMarketVolume', 0),
+                    'market_cap': info.get('marketCap', 0)
                 }
-            else:
-                stock_data[symbol] = {
-                    "company_name": stock_info.get("shortName", symbol),
-                    "price": "N/A",
-                    "previousClose": "N/A",
-                    "volume": "N/A",
-                    "marketCap": "N/A",
-                    "peRatio": "N/A",
-                    "dividendYield": "N/A",
-                    "52WeekHigh": "N/A",
-                    "52WeekLow": "N/A"
-                }
-
-        except Exception as e:
-            print(f"Error fetching data for {symbol}: {e}")
-            stock_data[symbol] = {
-                "company_name": symbol,
-                "price": "N/A",
-                "previousClose": "N/A",
-                "volume": "N/A",
-                "marketCap": "N/A",
-                "peRatio": "N/A",
-                "dividendYield": "N/A",
-                "52WeekHigh": "N/A",
-                "52WeekLow": "N/A"
-            }
-
-    return jsonify(stock_data)
+            except Exception as e:
+                print(f"Error fetching data for {symbol}: {str(e)}")
+                continue
+        
+        return jsonify(stock_data)
+    except Exception as e:
+        print(f"Error in get_stock_data: {str(e)}")
+        return jsonify({'error': 'Failed to fetch stock data'}), 500
 
 @app.route('/api/stock-history/<symbol>')
 @login_required
 def stock_history(symbol):
     try:
         print(f"Fetching stock history for {symbol}")
+        # Get timeRange from query parameters
+        timeRange = request.args.get('timeRange', '1Y')
+        
+        # Map timeRange to yfinance period
+        period_map = {
+            '1D': '1d',
+            '1W': '1wk',
+            '1M': '1mo',
+            '3M': '3mo',
+            '1Y': '1y'
+        }
+        period = period_map.get(timeRange, '1y')
+        
         # Fetch historical data
         stock = yf.Ticker(symbol)
-        hist = stock.history(period="1mo")
+        hist = stock.history(period=period)
         
         if hist.empty:
             print(f"No data available for {symbol}")
@@ -274,43 +255,45 @@ def stock_history(symbol):
 @app.route("/watchlist", methods=["GET", "POST", "DELETE"])
 @login_required
 def watchlist():
-    if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-
-    user_id = session["user_id"]
-    conn = sqlite3.connect("users.db")
-    cursor = conn.cursor()
-
     if request.method == "GET":
+        conn = sqlite3.connect("users.db")
+        cursor = conn.cursor()
+        user_id = session.get('user_id')
+        
         cursor.execute("SELECT symbol FROM watchlist WHERE user_id = ?", (user_id,))
         symbols = [row[0] for row in cursor.fetchall()]
+        
         conn.close()
         return jsonify({"symbols": symbols})
-
+    
     elif request.method == "POST":
         data = request.get_json()
-        symbol = data.get("symbol", "").strip().upper()
+        symbol = data.get('symbol')
         
         if not symbol:
             return jsonify({"error": "No symbol provided"}), 400
-
-        try:
-            cursor.execute("INSERT INTO watchlist (user_id, symbol) VALUES (?, ?)",
-                         (user_id, symbol))
-            conn.commit()
-            conn.close()
-            return jsonify({"status": "success"})
-        except sqlite3.IntegrityError:
-            conn.close()
-            return jsonify({"error": "Symbol already in watchlist"}), 400
-
+            
+        conn = sqlite3.connect("users.db")
+        cursor = conn.cursor()
+        user_id = session.get('user_id')
+        
+        cursor.execute("INSERT INTO watchlist (user_id, symbol) VALUES (?, ?)",
+                      (user_id, symbol))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success"})
+    
     elif request.method == "DELETE":
         data = request.get_json()
-        symbol = data.get("symbol", "").strip().upper()
+        symbol = data.get('symbol')
         
         if not symbol:
             return jsonify({"error": "No symbol provided"}), 400
-
+            
+        conn = sqlite3.connect("users.db")
+        cursor = conn.cursor()
+        user_id = session.get('user_id')
+        
         cursor.execute("DELETE FROM watchlist WHERE user_id = ? AND symbol = ?",
                       (user_id, symbol))
         conn.commit()
@@ -363,6 +346,8 @@ def portfolio():
             return jsonify({"error": "Missing required fields"}), 400
 
         try:
+            conn = sqlite3.connect("users.db")
+            cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO portfolio (user_id, symbol, shares, purchase_price)
                 VALUES (?, ?, ?, ?)
@@ -381,6 +366,8 @@ def portfolio():
         if not symbol:
             return jsonify({"error": "No symbol provided"}), 400
 
+        conn = sqlite3.connect("users.db")
+        cursor = conn.cursor()
         cursor.execute("DELETE FROM portfolio WHERE user_id = ? AND symbol = ?",
                       (user_id, symbol))
         conn.commit()
@@ -389,18 +376,12 @@ def portfolio():
 
 @app.route("/portfolio-predictions")
 def portfolio_predictions():
-    if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-
     try:
-        user_id = session["user_id"]
         conn = sqlite3.connect("users.db")
         cursor = conn.cursor()
-
-        cursor.execute("""
-            SELECT symbol, shares, purchase_price 
-            FROM portfolio WHERE user_id = ?
-        """, (user_id,))
+        user_id = session.get('user_id')
+        
+        cursor.execute("SELECT symbol, shares, purchase_price FROM portfolio WHERE user_id = ?", (user_id,))
         holdings = cursor.fetchall()
         conn.close()
 
@@ -665,7 +646,7 @@ def predict_stock_prices(history, symbol):
         
         print(f"Generated {len(predictions)} predictions")
         return predictions
-        
+
     except Exception as e:
         print(f"Prediction error: {e}")
         import traceback
@@ -770,6 +751,33 @@ def handle_error(error):
     import traceback
     print(traceback.format_exc())
     return jsonify({"error": str(error)}), 500
+
+@app.route('/top-stocks')
+@login_required
+def top_stocks():
+    return render_template('top_stocks.html', username=session['user'])
+
+@app.route('/add-to-watchlist', methods=['POST'])
+@login_required
+def add_to_watchlist():
+    try:
+        data = request.get_json()
+        symbol = data.get('symbol')
+        
+        if not symbol:
+            return jsonify({'error': 'Symbol is required'}), 400
+            
+        # Add to user's watchlist in database
+        # This is a placeholder - implement your database logic here
+        
+        return jsonify({'status': 'success', 'message': f'{symbol} added to watchlist'})
+    except Exception as e:
+        print(f"Error in add_to_watchlist: {str(e)}")
+        return jsonify({'error': 'Failed to add stock to watchlist'}), 500
+
+@app.route('/favicon.ico')
+def favicon():
+    return app.send_static_file('favicon.ico')
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)

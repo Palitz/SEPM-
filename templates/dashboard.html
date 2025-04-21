@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
@@ -21,76 +22,28 @@
                 </div>
                 <div>
                     <h2>Welcome, {{ username }}</h2>
-                    <p class="text-secondary">Track your investments</p>
+                    <p class="text-secondary">Stock Market Dashboard</p>
                 </div>
             </div>
             <div class="header-actions">
+                <select id="stockSelector" class="btn btn-outline" onchange="handleStockChange(this.value)">
+                    <option value="">Select a Stock</option>
+                    <!-- Stock options will be populated dynamically -->
+                </select>
+                <a href="/top-stocks" class="btn btn-outline">Top Stocks</a>
                 <button class="btn btn-outline" id="themeToggle">🌙</button>
                 <button class="btn btn-primary" id="logout">Logout</button>
             </div>
         </header>
 
-        <!-- Search Section -->
-        <section class="search-section">
-            <input type="text" id="stockSearch" placeholder="Search for stocks (e.g., AAPL, GOOGL)">
-            <button class="btn btn-primary" id="searchBtn">Search</button>
-        </section>
-
-        <!-- Quick Stats Grid -->
+        <!-- Main Content Grid -->
         <div class="grid">
-            <div class="card">
-                <div class="card-header">
-                    <h3>Market Overview</h3>
-                </div>
-                <div id="marketOverview">
-                    <!-- Market stats will be inserted here -->
-                </div>
-            </div>
-            <div class="card">
-                <div class="card-header">
-                    <h3>Your Watchlist</h3>
-                    <button class="btn btn-outline" id="addToWatchlist">+ Add</button>
-                </div>
-                <div id="watchlist">
-                    <!-- Watchlist items will be inserted here -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Main Content -->
-        <div class="grid">
-            <!-- Stock Table Card -->
-            <div class="card">
-                <div class="card-header">
-                    <h3>Top Stocks</h3>
-                    <div class="card-actions">
-                        <button class="btn btn-outline" id="refreshStocks">Refresh</button>
-                    </div>
-                </div>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Company</th>
-                                <th>Price</th>
-                                <th>Change</th>
-                                <th>Volume</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="stockTableBody">
-                            <!-- Stock data will be inserted here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Chart Card -->
+            <!-- Price History Card -->
             <div class="card">
                 <div class="card-header">
                     <h3>Price History</h3>
                     <div class="chart-controls">
-                        <select id="timeRange" class="btn btn-outline">
+                        <select id="timeRange" class="btn btn-outline" onchange="handleTimeRangeChange(this.value)">
                             <option value="1D">1 Day</option>
                             <option value="1W">1 Week</option>
                             <option value="1M">1 Month</option>
@@ -99,118 +52,43 @@
                         </select>
                     </div>
                 </div>
-                <div class="chart-container">
+                <div class="chart-container" style="height: 400px; position: relative;">
                     <canvas id="stockChart"></canvas>
                 </div>
             </div>
-        </div>
 
-        <!-- Enhanced Predictions Section -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h3>Price Predictions & Analysis</h3>
-            </div>
-            <div class="card-body">
-                <div class="predictions-container">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="prediction-summary">
-                                <h4>7-Day Forecast</h4>
-                                <div class="prediction-chart-container" style="height: 300px; position: relative;">
-                                    <canvas id="predictionsChart"></canvas>
-                                </div>
-                            </div>
+            <!-- Predictions Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Price Predictions & Analysis</h3>
+                </div>
+                <div class="card-body">
+                    <div class="predictions-container">
+                        <div class="prediction-chart-container" style="height: 300px; position: relative;">
+                            <canvas id="predictionsChart"></canvas>
                         </div>
-                        <div class="col-md-6">
-                            <div class="prediction-metrics">
-                                <h4>Key Metrics</h4>
-                                <div class="metrics-grid">
-                                    <div class="metric-item">
-                                        <span class="metric-label">Predicted High</span>
-                                        <span class="metric-value" id="predictedHigh">-</span>
-                                    </div>
-                                    <div class="metric-item">
-                                        <span class="metric-label">Predicted Low</span>
-                                        <span class="metric-value" id="predictedLow">-</span>
-                                    </div>
-                                    <div class="metric-item">
-                                        <span class="metric-label">Potential Return</span>
-                                        <span class="metric-value" id="potentialReturn">-</span>
-                                    </div>
-                                    <div class="metric-item">
-                                        <span class="metric-label">Confidence Score</span>
-                                        <span class="metric-value" id="confidenceScore">-</span>
-                                    </div>
-                                </div>
+                        <div class="metrics-grid">
+                            <div class="metric-item">
+                                <span class="metric-label">Predicted High</span>
+                                <span class="metric-value" id="predictedHigh">-</span>
                             </div>
-                        </div>
-                    </div>
-                    <div class="prediction-details mt-4">
-                        <h4>Daily Predictions</h4>
-                        <div class="table-responsive">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Predicted Price</th>
-                                        <th>Change</th>
-                                        <th>Confidence</th>
-                                        <th>Volume Trend</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="predictionDetailsBody">
-                                    <!-- Prediction details will be loaded here -->
-                                </tbody>
-                            </table>
+                            <div class="metric-item">
+                                <span class="metric-label">Predicted Low</span>
+                                <span class="metric-value" id="predictedLow">-</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Potential Return</span>
+                                <span class="metric-value" id="potentialReturn">-</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Confidence Score</span>
+                                <span class="metric-value" id="confidenceScore">-</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-
-        <style>
-            .predictions-container {
-                padding: 1rem;
-            }
-            
-            .prediction-chart-container {
-                height: 300px;
-                margin: 1rem 0;
-                position: relative;
-            }
-            
-            .metrics-grid {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 1rem;
-                margin-top: 1rem;
-            }
-            
-            .metric-item {
-                background: var(--surface-color);
-                padding: 1rem;
-                border-radius: 0.5rem;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            }
-            
-            .metric-label {
-                display: block;
-                font-size: 0.875rem;
-                color: var(--text-secondary);
-                margin-bottom: 0.5rem;
-            }
-            
-            .metric-value {
-                display: block;
-                font-size: 1.25rem;
-                font-weight: 600;
-                color: var(--text-primary);
-            }
-            
-            .prediction-details {
-                margin-top: 2rem;
-            }
-        </style>
 
         <!-- Portfolio Section -->
         <div class="card">
@@ -252,33 +130,6 @@
             </div>
         </div>
 
-        <!-- Watchlist Section -->
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Watchlist</h5>
-                <button class="btn btn-primary btn-sm" onclick="showAddToWatchlistModal()">
-                    <i class="fas fa-plus"></i> Add Stock
-                </button>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover" id="watchlistTable">
-                        <thead>
-                            <tr>
-                                <th>Symbol</th>
-                                <th>Current Price</th>
-                                <th>Change %</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="watchlistBody">
-                            <!-- Watchlist items will be loaded here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
         <!-- Add Stock Modal -->
         <div id="addStockModal" class="modal">
             <div class="modal-content">
@@ -301,30 +152,6 @@
                     </div>
                     <button type="submit" class="btn btn-primary">Add to Portfolio</button>
                 </form>
-            </div>
-        </div>
-
-        <!-- Add to Watchlist Modal -->
-        <div class="modal fade" id="addToWatchlistModal" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Add to Watchlist</h5>
-                        <button type="button" class="close" data-dismiss="modal">
-                            <span>&times;</span>
-                        </button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="form-group">
-                            <label for="watchlistSymbol">Stock Symbol</label>
-                            <input type="text" class="form-control" id="watchlistSymbol" placeholder="Enter stock symbol">
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-primary" onclick="addToWatchlist()">Add</button>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -359,15 +186,22 @@
                 }
                 const data = await response.json();
                 
-                // Update stock table
-                updateStockTable(data);
+                // Populate stock selector
+                const stockSelector = document.getElementById('stockSelector');
+                stockSelector.innerHTML = '<option value="">Select a Stock</option>';
                 
-                // Update market overview
-                updateMarketOverview(data);
+                Object.entries(data).forEach(([symbol, stockData]) => {
+                    const option = document.createElement('option');
+                    option.value = symbol;
+                    option.textContent = `${symbol} - ${stockData.name || 'N/A'}`;
+                    stockSelector.appendChild(option);
+                });
                 
-                // Fetch stock history for the first stock
-                const firstSymbol = Object.keys(data)[0];
-                if (firstSymbol) {
+                // If no stock is selected, select the first one
+                if (!currentSymbol && Object.keys(data).length > 0) {
+                    const firstSymbol = Object.keys(data)[0];
+                    currentSymbol = firstSymbol;
+                    stockSelector.value = firstSymbol;
                     fetchStockHistory(firstSymbol);
                 }
             } catch (error) {
@@ -378,71 +212,6 @@
                     errorDiv.style.display = 'block';
                 }
             }
-        }
-
-        function updateStockTable(data) {
-            const stockTable = document.getElementById("stockTableBody");
-            stockTable.innerHTML = "";
-
-            for (const [symbol, stockData] of Object.entries(data)) {
-                const row = document.createElement("tr");
-                const priceChange = calculatePriceChange(stockData);
-                const changeClass = priceChange >= 0 ? 'price-up' : 'price-down';
-                const changeSymbol = priceChange >= 0 ? '↑' : '↓';
-
-                row.innerHTML = `
-                    <td>
-                        <a href="#" class="stock-link" data-symbol="${symbol}">${stockData.company_name}</a>
-                    </td>
-                    <td>$${stockData.price}</td>
-                    <td class="${changeClass}">${changeSymbol} ${Math.abs(priceChange)}%</td>
-                    <td>${formatNumber(stockData.volume || 'N/A')}</td>
-                    <td>
-                        <button class="btn btn-outline btn-sm" onclick="addToWatchlist('${symbol}')">
-                            <i class="fas fa-star"></i> Watch
-                        </button>
-                    </td>
-                `;
-                stockTable.appendChild(row);
-            }
-
-            // Add click handlers for stock links
-            document.querySelectorAll(".stock-link").forEach(link => {
-                link.addEventListener("click", function(event) {
-                    event.preventDefault();
-                    fetchStockHistory(this.dataset.symbol);
-                });
-            });
-        }
-
-        function updateMarketOverview(data) {
-            const marketOverview = document.getElementById("marketOverview");
-            let totalChange = 0;
-            let count = 0;
-
-            for (const stockData of Object.values(data)) {
-                if (stockData.price !== "N/A") {
-                    totalChange += calculatePriceChange(stockData);
-                    count++;
-                }
-            }
-
-            const averageChange = count > 0 ? (totalChange / count).toFixed(2) : 0;
-            const changeClass = averageChange >= 0 ? 'price-up' : 'price-down';
-            const changeSymbol = averageChange >= 0 ? '↑' : '↓';
-
-            marketOverview.innerHTML = `
-                <div class="market-stats">
-                    <div class="stat-item">
-                        <span class="stat-label">Market Trend</span>
-                        <span class="stat-value ${changeClass}">${changeSymbol} ${Math.abs(averageChange)}%</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Stocks Tracked</span>
-                        <span class="stat-value">${count}</span>
-                    </div>
-                </div>
-            `;
         }
 
         async function fetchStockHistory(symbol) {
@@ -475,7 +244,7 @@
 
         function updateChart(symbol, historicalData, predictions) {
             const ctx = document.getElementById("stockChart").getContext("2d");
-            
+
             if (stockChart) {
                 stockChart.destroy();
             }
@@ -533,7 +302,8 @@
                         x: {
                             type: 'time',
                             time: {
-                                unit: 'day'
+                                unit: 'day',
+                                parser: 'yyyy-MM-dd'
                             },
                             title: {
                                 display: true,
@@ -572,7 +342,6 @@
                 document.getElementById('predictedLow').textContent = 'N/A';
                 document.getElementById('potentialReturn').textContent = 'N/A';
                 document.getElementById('confidenceScore').textContent = 'N/A';
-                document.getElementById('predictionDetailsBody').innerHTML = '<tr><td colspan="5" class="text-center">No predictions available</td></tr>';
                 
                 // Create empty chart
                 window.predictionsChart = new Chart(ctx, {
@@ -629,41 +398,12 @@
             const potentialReturn = ((predictedHigh - lastPrice) / lastPrice * 100).toFixed(2);
             const avgConfidence = (data.predictions.reduce((sum, p) => sum + p.confidence, 0) / data.predictions.length).toFixed(1);
 
-            console.log('Prediction metrics:', {
-                predictedHigh,
-                predictedLow,
-                lastPrice,
-                potentialReturn,
-                avgConfidence
-            });
-
             // Update metrics
             document.getElementById('predictedHigh').textContent = `$${predictedHigh.toFixed(2)}`;
             document.getElementById('predictedLow').textContent = `$${predictedLow.toFixed(2)}`;
             document.getElementById('potentialReturn').textContent = `${potentialReturn}%`;
             document.getElementById('confidenceScore').textContent = `${avgConfidence}%`;
-
-            // Update prediction details table
-            const detailsHtml = data.predictions.map(pred => `
-                <tr>
-                    <td>${pred.date}</td>
-                    <td>$${pred.predicted_price.toFixed(2)}</td>
-                    <td class="${pred.change >= 0 ? 'text-success' : 'text-danger'}">
-                        ${pred.change >= 0 ? '+' : ''}${pred.change.toFixed(2)}%
-                    </td>
-                    <td>${pred.confidence.toFixed(1)}%</td>
-                    <td>
-                        <i class="fas fa-${pred.change >= 0 ? 'arrow-up text-success' : 'arrow-down text-danger'}"></i>
-                    </td>
-                </tr>
-            `).join('');
-            document.getElementById('predictionDetailsBody').innerHTML = detailsHtml;
             
-            console.log('Creating predictions chart with data:', {
-                labels: data.predictions.map(p => p.date),
-                prices: data.predictions.map(p => p.predicted_price)
-            });
-
             // Create the predictions chart
             window.predictionsChart = new Chart(ctx, {
                 type: 'line',
@@ -715,77 +455,7 @@
                     }
                 }
             });
-            
-            console.log('Predictions chart created');
         }
-
-        // Utility Functions
-        function calculatePriceChange(stockData) {
-            if (!stockData.price || !stockData.previousClose) return 0;
-            return ((stockData.price - stockData.previousClose) / stockData.previousClose * 100).toFixed(2);
-        }
-
-        function formatNumber(num) {
-            if (num === 'N/A') return num;
-            return new Intl.NumberFormat().format(num);
-        }
-
-        function showLoading() {
-            document.getElementById('loadingOverlay').style.display = 'flex';
-        }
-
-        function hideLoading() {
-            document.getElementById('loadingOverlay').style.display = 'none';
-        }
-
-        // Event Listeners
-        document.getElementById("searchBtn").addEventListener("click", function() {
-            const query = document.getElementById("stockSearch").value.trim();
-            if (query) {
-                fetchStockData(query);
-            }
-        });
-
-        document.getElementById("stockSearch").addEventListener("keypress", function(event) {
-            if (event.key === "Enter") {
-                document.getElementById("searchBtn").click();
-            }
-        });
-
-        document.getElementById("logout").addEventListener("click", async function() {
-            const response = await fetch("/logout", { method: "POST" });
-            const result = await response.json();
-            
-            if (result.status === "success") {
-                window.location.href = "/";
-            }
-        });
-
-        // Initialize Chart.js
-        document.addEventListener('DOMContentLoaded', function() {
-            // Register Chart.js components
-            Chart.defaults.font.family = "'Inter', sans-serif";
-            Chart.defaults.color = '#666';
-            
-            // Add error message container if it doesn't exist
-            if (!document.getElementById('error-message')) {
-                const errorDiv = document.createElement('div');
-                errorDiv.id = 'error-message';
-                errorDiv.style.display = 'none';
-                errorDiv.style.color = 'red';
-                errorDiv.style.padding = '10px';
-                errorDiv.style.margin = '10px';
-                errorDiv.style.backgroundColor = '#ffebee';
-                errorDiv.style.borderRadius = '4px';
-                document.body.insertBefore(errorDiv, document.body.firstChild);
-            }
-            
-            // Initial data fetch
-            fetchStockData();
-            
-            // Set up periodic refresh
-            setInterval(fetchStockData, 60000); // Refresh every minute
-        });
 
         // Portfolio Functions
         function loadPortfolio() {
@@ -798,7 +468,7 @@
                     data.holdings.forEach(holding => {
                         const row = document.createElement('tr');
                         row.innerHTML = `
-                            <td>${holding.symbol}</td>
+                            <td><a href="#" class="stock-link" onclick="viewStockDetails('${holding.symbol}')">${holding.symbol}</a></td>
                             <td>${holding.shares}</td>
                             <td>$${holding.purchase_price.toFixed(2)}</td>
                             <td>$${holding.current_price.toFixed(2)}</td>
@@ -896,89 +566,93 @@
             }
         }
 
-        // Load portfolio data when the page loads
-        document.addEventListener('DOMContentLoaded', () => {
-            loadPortfolio();
+        async function handleTimeRangeChange(timeRange) {
+            showLoading();
+            try {
+                const response = await fetch(`/api/stock-history/${currentSymbol}?timeRange=${timeRange}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch stock history');
+                }
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Update both charts with new data
+                updateChart(currentSymbol, data.historical, data.predictions);
+                updatePredictions(data);
+            } catch (error) {
+                console.error('Error updating time range:', error);
+                const errorDiv = document.getElementById('error-message');
+                if (errorDiv) {
+                    errorDiv.textContent = `Error updating time range: ${error.message}`;
+                    errorDiv.style.display = 'block';
+                }
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function handleStockChange(symbol) {
+            if (!symbol) return;
+            currentSymbol = symbol;
+            await fetchStockHistory(symbol);
+        }
+
+        function viewStockDetails(symbol) {
+            // Update the stock selector to match the clicked stock
+            const stockSelector = document.getElementById('stockSelector');
+            stockSelector.value = symbol;
+            
+            // Update current symbol and fetch stock history
+            currentSymbol = symbol;
+            fetchStockHistory(symbol);
+            
+            // Scroll to the top of the page to show the charts
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Register Chart.js components
+            Chart.defaults.font.family = "'Inter', sans-serif";
+            Chart.defaults.color = '#666';
+            
+            // Add error message container if it doesn't exist
+            if (!document.getElementById('error-message')) {
+                const errorDiv = document.createElement('div');
+                errorDiv.id = 'error-message';
+                errorDiv.style.display = 'none';
+                errorDiv.style.color = 'red';
+                errorDiv.style.padding = '10px';
+                errorDiv.style.margin = '10px';
+                errorDiv.style.backgroundColor = '#ffebee';
+                errorDiv.style.borderRadius = '4px';
+                document.body.insertBefore(errorDiv, document.body.firstChild);
+            }
+            
+            // Initial data fetch
             fetchStockData();
+            loadPortfolio();
+            
+            // Set up periodic refresh
+            setInterval(fetchStockData, 60000); // Refresh every minute
         });
 
-        // Unified Watchlist Functions
-        function addToWatchlist(symbol) {
-            fetch('/watchlist', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ symbol })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    loadWatchlist();
-                } else {
-                    alert(data.error || 'Failed to add stock to watchlist');
-                }
-            })
-            .catch(error => {
-                console.error('Error adding to watchlist:', error);
-                alert('Failed to add stock to watchlist');
-            });
+        // Loading overlay functions
+        function showLoading() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.style.display = 'flex';
+            }
         }
 
-        function loadWatchlist() {
-            fetch('/watchlist')
-                .then(response => response.json())
-                .then(data => {
-                    const watchlistContainer = document.getElementById('watchlist');
-                    watchlistContainer.innerHTML = '';
-                    
-                    if (data.symbols && data.symbols.length > 0) {
-                        data.symbols.forEach(symbol => {
-                            const watchlistItem = document.createElement('div');
-                            watchlistItem.className = 'watchlist-item';
-                            watchlistItem.innerHTML = `
-                                <span class="symbol">${symbol}</span>
-                                <button class="btn btn-outline btn-sm" onclick="removeFromWatchlist('${symbol}')">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            `;
-                            watchlistContainer.appendChild(watchlistItem);
-                        });
-                    } else {
-                        watchlistContainer.innerHTML = '<div class="empty-watchlist">No stocks in watchlist</div>';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading watchlist:', error);
-                    document.getElementById('watchlist').innerHTML = '<div class="error-message">Failed to load watchlist</div>';
-                });
-        }
-
-        function removeFromWatchlist(symbol) {
-            fetch('/watchlist', {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ symbol })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    loadWatchlist();
-                } else {
-                    alert(data.error || 'Failed to remove stock from watchlist');
-                }
-            })
-            .catch(error => {
-                console.error('Error removing from watchlist:', error);
-                alert('Failed to remove stock from watchlist');
-            });
-        }
-
-        function showAddToWatchlistModal() {
-            const modal = document.getElementById('addToWatchlistModal');
-            modal.style.display = 'block';
+        function hideLoading() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
         }
     </script>
 </body>

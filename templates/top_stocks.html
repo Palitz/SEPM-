@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Top Stocks - Stock Market Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header Section -->
+        <header class="dashboard-header">
+            <div class="welcome-section">
+                <div class="user-avatar">
+                    {{ username[0].upper() }}
+                </div>
+                <div>
+                    <h2>Welcome, {{ username }}</h2>
+                    <p class="text-secondary">Top Performing Stocks</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <a href="/dashboard" class="btn btn-outline">Dashboard</a>
+                <button class="btn btn-outline" id="themeToggle">🌙</button>
+                <button class="btn btn-primary" id="logout">Logout</button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Top Stocks</h2>
+                <div class="header-actions">
+                    <button class="btn btn-outline" onclick="refreshStockData()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table id="topStocksTable">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Company Name</th>
+                            <th>Current Price</th>
+                            <th>Change</th>
+                            <th>Volume</th>
+                            <th>Market Cap</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topStocksTableBody">
+                        <!-- Stock data will be inserted here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- Stock Details Modal -->
+    <div id="stockDetailsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalStockTitle">Stock Details</h3>
+                <button class="close-btn" onclick="closeStockDetailsModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="chart-container">
+                    <canvas id="modalStockChart"></canvas>
+                </div>
+                <div class="predictions-container">
+                    <div class="prediction-chart-container" style="height: 300px; position: relative;">
+                        <canvas id="modalPredictionsChart"></canvas>
+                    </div>
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <span class="metric-label">Predicted High</span>
+                            <span class="metric-value" id="modalPredictedHigh">-</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Predicted Low</span>
+                            <span class="metric-value" id="modalPredictedLow">-</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Potential Return</span>
+                            <span class="metric-value" id="modalPotentialReturn">-</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Confidence Score</span>
+                            <span class="metric-value" id="modalConfidenceScore">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Theme Toggle
+        const themeToggle = document.getElementById('themeToggle');
+        themeToggle.addEventListener('click', () => {
+            document.body.dataset.theme = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
+            themeToggle.textContent = document.body.dataset.theme === 'dark' ? '☀️' : '🌙';
+        });
+
+        // Initialize with system preference
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.body.dataset.theme = 'dark';
+            themeToggle.textContent = '☀️';
+        }
+
+        function showLoading() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(value);
+        }
+
+        function formatNumber(value) {
+            return new Intl.NumberFormat('en-US', {
+                maximumFractionDigits: 2
+            }).format(value);
+        }
+
+        function formatLargeNumber(value) {
+            if (value >= 1e12) {
+                return formatNumber(value / 1e12) + 'T';
+            } else if (value >= 1e9) {
+                return formatNumber(value / 1e9) + 'B';
+            } else if (value >= 1e6) {
+                return formatNumber(value / 1e6) + 'M';
+            } else if (value >= 1e3) {
+                return formatNumber(value / 1e3) + 'K';
+            }
+            return formatNumber(value);
+        }
+
+        async function fetchStockData() {
+            showLoading();
+            try {
+                const response = await fetch('/stock-data');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch stock data');
+                }
+                const data = await response.json();
+                updateTopStocksTable(data);
+            } catch (error) {
+                console.error('Error fetching stock data:', error);
+                alert('Error loading stock data. Please try again later.');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function updateTopStocksTable(data) {
+            const tbody = document.getElementById('topStocksTableBody');
+            tbody.innerHTML = '';
+
+            Object.entries(data).forEach(([symbol, stockData]) => {
+                const row = document.createElement('tr');
+                const changeClass = stockData.change >= 0 ? 'positive-change' : 'negative-change';
+                
+                row.innerHTML = `
+                    <td>${symbol}</td>
+                    <td>${stockData.name || 'N/A'}</td>
+                    <td>${formatCurrency(stockData.price)}</td>
+                    <td class="${changeClass}">${formatNumber(stockData.change)}%</td>
+                    <td>${formatLargeNumber(stockData.volume)}</td>
+                    <td>${formatLargeNumber(stockData.market_cap)}</td>
+                    <td>
+                        <button class="btn btn-outline" onclick="showStockDetails('${symbol}')">
+                            <i class="fas fa-chart-line"></i> View
+                        </button>
+                        <button class="btn btn-outline" onclick="addToWatchlist('${symbol}')">
+                            <i class="fas fa-plus"></i> Watch
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        async function addToWatchlist(symbol) {
+            try {
+                const response = await fetch('/add-to-watchlist', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ symbol })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to add stock to watchlist');
+                }
+
+                alert(`${symbol} added to watchlist successfully!`);
+            } catch (error) {
+                console.error('Error adding to watchlist:', error);
+                alert('Failed to add stock to watchlist. Please try again later.');
+            }
+        }
+
+        function refreshStockData() {
+            fetchStockData();
+        }
+
+        // Initial load
+        fetchStockData();
+
+        // Refresh every 5 minutes
+        setInterval(fetchStockData, 5 * 60 * 1000);
+
+        // Logout handler
+        document.getElementById('logout').addEventListener('click', () => {
+            window.location.href = '/logout';
+        });
+
+        let modalStockChart;
+        let modalPredictionsChart;
+
+        function showStockDetails(symbol) {
+            showLoading();
+            document.getElementById('modalStockTitle').textContent = `${symbol} - Stock Details`;
+            document.getElementById('stockDetailsModal').style.display = 'block';
+            
+            // Fetch stock history and predictions
+            fetch(`/api/stock-history/${symbol}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    // Update charts
+                    updateModalCharts(symbol, data.historical, data.predictions);
+                    updateModalPredictions(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching stock details:', error);
+                    alert('Error loading stock details. Please try again later.');
+                })
+                .finally(() => {
+                    hideLoading();
+                });
+        }
+
+        function closeStockDetailsModal() {
+            document.getElementById('stockDetailsModal').style.display = 'none';
+            if (modalStockChart) {
+                modalStockChart.destroy();
+            }
+            if (modalPredictionsChart) {
+                modalPredictionsChart.destroy();
+            }
+        }
+
+        function updateModalCharts(symbol, historicalData, predictions) {
+            const ctx = document.getElementById("modalStockChart").getContext("2d");
+            
+            if (modalStockChart) {
+                modalStockChart.destroy();
+            }
+            
+            const labels = historicalData.map(entry => entry.date);
+            const prices = historicalData.map(entry => entry.price);
+            const predictedLabels = predictions.map(entry => entry.date);
+            const predictedPrices = predictions.map(entry => entry.predicted_price);
+            
+            modalStockChart = new Chart(ctx, {
+                type: "line",
+                data: {
+                    labels: [...labels, ...predictedLabels],
+                    datasets: [
+                        {
+                            label: "Historical Price",
+                            data: [...prices, ...Array(predictedPrices.length).fill(null)],
+                            borderColor: "#2563eb",
+                            backgroundColor: "rgba(37, 99, 235, 0.1)",
+                            borderWidth: 2,
+                            fill: true
+                        },
+                        {
+                            label: "Predicted Price",
+                            data: [...Array(prices.length).fill(null), ...predictedPrices],
+                            borderColor: "#22c55e",
+                            backgroundColor: "rgba(34, 197, 94, 0.1)",
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `${symbol} Stock Price`
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `$${context.parsed.y.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Price (USD)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateModalPredictions(data) {
+            const ctx = document.getElementById('modalPredictionsChart');
+            
+            if (modalPredictionsChart) {
+                modalPredictionsChart.destroy();
+            }
+            
+            if (!data.predictions || data.predictions.length === 0) {
+                document.getElementById('modalPredictedHigh').textContent = 'N/A';
+                document.getElementById('modalPredictedLow').textContent = 'N/A';
+                document.getElementById('modalPotentialReturn').textContent = 'N/A';
+                document.getElementById('modalConfidenceScore').textContent = 'N/A';
+                
+                modalPredictionsChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Predicted Price',
+                            data: [],
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: '7-Day Price Forecast',
+                                font: {
+                                    size: 16
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Date'
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Price (USD)'
+                                },
+                                beginAtZero: false
+                            }
+                        }
+                    }
+                });
+                return;
+            }
+            
+            // Calculate metrics
+            const prices = data.predictions.map(p => p.predicted_price);
+            const predictedHigh = Math.max(...prices);
+            const predictedLow = Math.min(...prices);
+            const lastPrice = data.historical[data.historical.length - 1].price;
+            const potentialReturn = ((predictedHigh - lastPrice) / lastPrice * 100).toFixed(2);
+            const avgConfidence = (data.predictions.reduce((sum, p) => sum + p.confidence, 0) / data.predictions.length).toFixed(1);
+            
+            // Update metrics
+            document.getElementById('modalPredictedHigh').textContent = `$${predictedHigh.toFixed(2)}`;
+            document.getElementById('modalPredictedLow').textContent = `$${predictedLow.toFixed(2)}`;
+            document.getElementById('modalPotentialReturn').textContent = `${potentialReturn}%`;
+            document.getElementById('modalConfidenceScore').textContent = `${avgConfidence}%`;
+            
+            // Create the predictions chart
+            modalPredictionsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.predictions.map(p => p.date),
+                    datasets: [{
+                        label: 'Predicted Price',
+                        data: data.predictions.map(p => p.predicted_price),
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '7-Day Price Forecast',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `$${context.parsed.y.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Price (USD)'
+                            },
+                            beginAtZero: false
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html> 
